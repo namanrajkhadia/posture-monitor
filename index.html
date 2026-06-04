@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Posture Monitor — sit straighter, automatically</title>
+<meta name="description" content="A tiny webcam-based desktop app that watches your posture and nudges you when you slouch. Runs locally, no cloud, no account.">
+<style>
+  :root {
+    --bg: #0b0e13;
+    --surface: #11151c;
+    --surface-2: #161b24;
+    --border: #1f2632;
+    --ink: #e8ecf1;
+    --ink-dim: #99a3b3;
+    --good: #22c55e;
+    --bad: #ef4444;
+    --accent: #7dd3fc;
+    --accent-2: #a78bfa;
+    --shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1a2030 0%, var(--bg) 60%) fixed;
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .container { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header.nav {
+    padding: 28px 0;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 600; letter-spacing: 0.2px;
+  }
+  .brand .dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--good);
+    box-shadow: 0 0 0 3px rgba(34,197,94,0.18);
+  }
+  .nav-links { display: flex; gap: 28px; font-size: 14px; color: var(--ink-dim); }
+  .nav-links a { color: inherit; }
+
+  section.hero { padding: 72px 0 56px; }
+  .eyebrow {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    margin-bottom: 18px;
+  }
+  h1 {
+    font-size: clamp(40px, 6vw, 72px);
+    line-height: 1.05;
+    margin: 0 0 22px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  h1 .accent {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .lede {
+    font-size: clamp(17px, 1.6vw, 20px);
+    color: var(--ink-dim);
+    max-width: 640px;
+    margin: 0 0 32px;
+  }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 15px;
+    border: 1px solid transparent;
+    transition: transform .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #0b0e13;
+  }
+  .btn-primary:hover { transform: translateY(-1px); text-decoration: none; }
+  .btn-secondary {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--ink);
+  }
+  .btn-secondary:hover {
+    border-color: #2c3646; text-decoration: none;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); }
+
+  .demo {
+    margin-top: 56px;
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .demo-screen {
+    aspect-ratio: 16 / 9;
+    background:
+      radial-gradient(600px 240px at 30% 30%, rgba(125,211,252,0.10), transparent 60%),
+      radial-gradient(600px 240px at 70% 70%, rgba(167,139,250,0.10), transparent 60%),
+      #0a0d12;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .demo-screen .banner {
+    position: absolute; top: 18px; left: 18px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    background: rgba(34,197,94,0.18);
+    color: var(--good);
+    border: 1px solid rgba(34,197,94,0.35);
+  }
+  .demo-screen .banner.bad {
+    background: rgba(239,68,68,0.16);
+    color: var(--bad);
+    border-color: rgba(239,68,68,0.35);
+  }
+  .demo-screen .skeleton {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -45%);
+    width: 60%; height: 60%;
+  }
+  .demo-screen svg { width: 100%; height: 100%; }
+  .demo-screen .footer {
+    position: absolute; bottom: 18px; left: 18px; right: 18px;
+    display: flex; justify-content: space-between;
+    color: var(--ink-dim); font-size: 12px;
+  }
+
+  .toast {
+    position: absolute;
+    right: 22px; bottom: 22px;
+    width: 280px;
+    background: rgba(20,25,35,0.92);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    animation: slideIn 0.6s ease both;
+  }
+  @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } }
+  .toast .title { font-weight: 700; margin-bottom: 4px; font-size: 14px; }
+  .toast .msg { color: var(--ink-dim); font-size: 13px; }
+
+  section.features { padding: 72px 0; }
+  h2 {
+    font-size: clamp(28px, 3.6vw, 40px);
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+  .section-lede { color: var(--ink-dim); margin: 0 0 40px; max-width: 600px; }
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+  }
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    transition: border-color .12s ease, transform .12s ease;
+  }
+  .feature:hover { border-color: #2c3646; transform: translateY(-2px); }
+  .feature .ico {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(125,211,252,0.15), rgba(167,139,250,0.15));
+    display: grid; place-items: center;
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+  .feature h3 { margin: 0 0 6px; font-size: 16px; }
+  .feature p { margin: 0; color: var(--ink-dim); font-size: 14px; }
+
+  section.howto { padding: 56px 0 88px; }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    margin-top: 32px;
+  }
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .step .num {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--accent);
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+  .step h3 { margin: 0 0 8px; font-size: 16px; }
+  .step p { margin: 0 0 12px; color: var(--ink-dim); font-size: 14px; }
+  pre, code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+  pre {
+    background: #0a0d12;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    color: #d6deeb;
+    margin: 0;
+  }
+
+  section.faq { padding: 0 0 88px; }
+  .qa {
+    border-top: 1px solid var(--border);
+    padding: 22px 0;
+  }
+  .qa h3 { margin: 0 0 6px; font-size: 16px; }
+  .qa p { margin: 0; color: var(--ink-dim); font-size: 15px; }
+
+  footer.foot {
+    border-top: 1px solid var(--border);
+    padding: 28px 0;
+    color: var(--ink-dim);
+    font-size: 13px;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+
+  @media (max-width: 600px) {
+    section.hero { padding: 48px 0 32px; }
+    .toast { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header class="nav">
+    <div class="brand"><div class="dot"></div> Posture Monitor</div>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="pill"><span class="dot"></span> Runs locally · no cloud · no account</div>
+    <div class="eyebrow" style="margin-top: 24px;">Personal posture coach</div>
+    <h1>Sit straighter,<br><span class="accent">automatically.</span></h1>
+    <p class="lede">
+      A tiny desktop app that watches your shoulders and head through your webcam,
+      and nudges you with a quiet notification the moment you start to slouch.
+      Calibrate to your own good posture, then forget it's there.
+    </p>
+
+    <div class="cta-row">
+      <a class="btn btn-primary" href="PostureMonitor.zip" download>
+        <span style="font-size:18px; line-height:1;">⬇</span> Download for Windows
+      </a>
+      <a class="btn btn-secondary" href="#features">See features</a>
+    </div>
+    <div style="margin-top:14px; font-size:13px; color:var(--ink-dim);">
+      Windows 10/11 · ~130 MB · no Python required ·
+      <a href="#install" style="color:inherit; text-decoration:underline;">install from source instead</a>
+    </div>
+
+    <div class="demo">
+      <div class="demo-screen">
+        <div class="banner bad">BAD: forward head, slouching (5.2s)</div>
+        <div class="skeleton">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <line x1="60" y1="60" x2="140" y2="60" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+            <line x1="40" y1="140" x2="160" y2="140" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+            <line x1="60" y1="60" x2="40" y2="140" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+            <line x1="140" y1="60" x2="160" y2="140" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="60" cy="60" r="6" fill="#ef4444"/>
+            <circle cx="140" cy="60" r="6" fill="#ef4444"/>
+            <circle cx="40" cy="140" r="6" fill="#ef4444"/>
+            <circle cx="160" cy="140" r="6" fill="#ef4444"/>
+            <circle cx="100" cy="40" r="5" fill="#ef4444"/>
+          </svg>
+        </div>
+        <div class="footer">
+          <div>→ Pull chin back, ears over shoulders.</div>
+          <div>today: 78% good</div>
+        </div>
+        <div class="toast">
+          <div class="title">Fix your posture</div>
+          <div class="msg">Detected: forward head, slouching<br>• Pull chin back, ears over shoulders.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="container">
+  <section class="features" id="features">
+    <h2>Built to disappear</h2>
+    <p class="section-lede">
+      Everything happens locally on your machine. The webcam frame never leaves your computer —
+      MediaPipe runs the pose model in-process, the tray icon stays out of your way,
+      and a single notification is all you'll ever see when you slip.
+    </p>
+
+    <div class="feature-grid">
+      <div class="feature">
+        <div class="ico">●</div>
+        <h3>Calibrates to you</h3>
+        <p>A 5-second hold-still capture defines <em>your</em> good posture. The stability bar tells you when it's a clean baseline.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">▣</div>
+        <h3>Quiet by design</h3>
+        <p>Lives in the system tray. Window can be hidden. The only interruption is one toast notification when you actually need it.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">≡</div>
+        <h3>Per-axis sensitivity</h3>
+        <p>Five sliders for forward head, neck angle, head tilt, shoulder tilt, and alert hold. Settings persist across runs.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">⌖</div>
+        <h3>Daily report</h3>
+        <p>"78% good posture today · 32 min good · 9 min bad." A click in the tray menu gives you the day at a glance.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">⏻</div>
+        <h3>Starts with Windows</h3>
+        <p>One toggle in the tray menu adds it to your login items so it's just always there. Toggle off the same way.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">⌂</div>
+        <h3>100% local</h3>
+        <p>No accounts, no telemetry, no cloud. Webcam frames are processed and discarded in-memory; nothing is uploaded, ever.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="howto" id="install">
+    <h2>Three steps</h2>
+    <p class="section-lede">
+      Download, double-click, calibrate. No Python, no terminal, no setup wizard.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="num">01</div>
+        <h3>Download the zip</h3>
+        <p>~130 MB. Self-contained — no Python or pip required.</p>
+        <a class="btn btn-primary" href="PostureMonitor.zip" download style="margin-top:6px;">
+          <span style="font-size:16px;">⬇</span> PostureMonitor.zip
+        </a>
+      </div>
+
+      <div class="step">
+        <div class="num">02</div>
+        <h3>Extract anywhere</h3>
+        <p>Right-click → Extract All. The folder works wherever you put it — Desktop, Documents, Program Files, your call.</p>
+      </div>
+
+      <div class="step">
+        <div class="num">03</div>
+        <h3>Double-click PostureMonitor.exe</h3>
+        <p>Sit how you want to sit all day. Hold still through the 5-second countdown. From then on, the tray icon stays out of your way, and you'll only hear from it when you slouch.</p>
+      </div>
+    </div>
+
+    <details style="margin-top: 32px; color: var(--ink-dim); font-size:14px;">
+      <summary style="cursor:pointer;">Run from source instead</summary>
+      <div class="steps" style="margin-top:18px;">
+        <div class="step">
+          <div class="num">01</div>
+          <h3>Install dependencies</h3>
+          <pre>pip install mediapipe opencv-python winotify pystray Pillow pywin32</pre>
+        </div>
+        <div class="step">
+          <div class="num">02</div>
+          <h3>Grab the pose model</h3>
+          <pre>Invoke-WebRequest `
+  https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task `
+  -OutFile pose_landmarker_lite.task</pre>
+        </div>
+        <div class="step">
+          <div class="num">03</div>
+          <h3>Add Desktop shortcut + launch</h3>
+          <pre>python install_shortcuts.py
+pythonw launch.pyw</pre>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <section class="faq" id="faq">
+    <h2>FAQ</h2>
+
+    <div class="qa">
+      <h3>Does it work without a GPU?</h3>
+      <p>Yes — the lite pose model runs comfortably on CPU. ~30 fps on most modern laptops.</p>
+    </div>
+    <div class="qa">
+      <h3>Does it record me?</h3>
+      <p>No. Frames are read from the webcam, fed straight into the pose detector, and discarded. Nothing is saved or uploaded. The only persisted data is your config (sliders, mute state) and a tiny per-day stats file with two integers.</p>
+    </div>
+    <div class="qa">
+      <h3>Can I close the preview window and just keep the tray icon?</h3>
+      <p>Yes. Right-click the tray icon and uncheck "Show preview". The detector keeps running in the background; you'll only see toasts when posture goes bad.</p>
+    </div>
+    <div class="qa">
+      <h3>What if it keeps false-alarming?</h3>
+      <p>Open the preview window and slide the relevant axis up — e.g., if it nags about head tilt while you're reading, raise the "Head tilt deg" slider. Settings are saved automatically.</p>
+    </div>
+    <div class="qa">
+      <h3>Can I move my chair without recalibrating?</h3>
+      <p>Small drift is fine — the metrics are normalized by shoulder width, so distance to the camera doesn't matter much. Big changes (new desk, different camera) → recalibrate from the tray menu.</p>
+    </div>
+  </section>
+</div>
+
+<div class="container">
+  <footer class="foot">
+    <div>Built with MediaPipe + OpenCV. Runs locally. No tracking.</div>
+    <div>posture_monitor.py</div>
+  </footer>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+# PyInstaller artifacts (uploaded to Releases instead)
+build/
+dist/
+*.spec.bak
+PostureMonitor.zip
+build_log.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local-only notes that aren't part of the project
+SESSION_NOTES.md
+
+# The pose model is downloadable; not part of source
+pose_landmarker_lite.task
